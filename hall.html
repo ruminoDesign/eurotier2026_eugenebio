@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EuroTier 2026 · 부스 검색</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: #ffffff; color: #0b0b0b;
+  }
+  header { padding: 20px 24px 8px; }
+  header a { color: #898781; text-decoration: none; font-size: 14px; }
+  header h1 { font-size: 20px; margin: 8px 0 4px; }
+  header p { color: #898781; font-size: 13px; margin: 0 0 16px; }
+
+  .controls {
+    padding: 0 24px 16px;
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  }
+  select {
+    padding: 10px 12px; font-size: 15px; border: 1px solid #c3c2b7;
+    border-radius: 6px; min-width: 220px; background: #fff; color: #0b0b0b;
+  }
+  #count { color: #898781; font-size: 13px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead th {
+    position: sticky; top: 0; background: #fcfcfb;
+    text-align: left; padding: 10px 24px; border-bottom: 1px solid #c3c2b7;
+    color: #52514e; font-weight: 600;
+  }
+  tbody td {
+    padding: 10px 24px; border-bottom: 1px solid #e1e0d9; vertical-align: top;
+  }
+  tbody tr:hover { background: #fcfcfb; }
+  td.cat { color: #52514e; font-size: 13px; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 12px; font-weight: 600; color: #fff;
+  }
+  .badge.core { background: #eb6834; }
+  .badge.other { background: #c3c2b7; color: #0b0b0b; }
+  .empty { padding: 40px 24px; color: #898781; text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="index.html">← 처음으로</a>
+  <h1>홀(Hall)로 찾기</h1>
+  <p>홀을 선택하면 해당 홀의 업체 목록과 분류 코드가 나옵니다</p>
+</header>
+
+<div class="controls">
+  <select id="hallSelect"></select>
+  <span id="count"></span>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>분류코드</th>
+      <th>Booth</th>
+      <th>업체명</th>
+      <th>카테고리</th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+<div class="empty" id="emptyMsg" style="display:none;">해당하는 업체가 없습니다</div>
+
+<script>
+let exhibitors = [];
+let keywordsById = {};
+
+function loadCsv(path) {
+  return new Promise(resolve => {
+    Papa.parse(path, {
+      download: true, header: true, skipEmptyLines: true,
+      complete: res => resolve(res.data)
+    });
+  });
+}
+
+async function init() {
+  const [exRows, mapRows] = await Promise.all([
+    loadCsv("exhibitors.csv"),
+    loadCsv("exhibitor_keyword_map.csv")
+  ]);
+
+  mapRows.forEach(r => {
+    if (!r.id || !r.word) return;
+    if (!keywordsById[r.id]) keywordsById[r.id] = [];
+    keywordsById[r.id].push(r.word);
+  });
+
+  exhibitors = exRows.filter(r => r.id).map(r => ({
+    ...r,
+    hall: r.hall && r.hall.trim() !== "" ? r.hall : "위치 미정"
+  }));
+
+  const halls = [...new Set(exhibitors.map(r => r.hall))]
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+  const select = document.getElementById("hallSelect");
+  select.innerHTML = `<option value="all">전체 홀 보기</option>` +
+    halls.map(h => `<option value="${h}">${h}</option>`).join("");
+
+  select.addEventListener("change", e => render(e.target.value));
+  render("all");
+}
+
+function render(hall) {
+  const rows = document.getElementById("rows");
+  const emptyMsg = document.getElementById("emptyMsg");
+  rows.innerHTML = "";
+
+  const filtered = hall === "all"
+    ? exhibitors
+    : exhibitors.filter(r => r.hall === hall);
+
+  document.getElementById("count").innerText = `${filtered.length}개 업체`;
+
+  if (filtered.length === 0) {
+    emptyMsg.style.display = "block";
+    return;
+  }
+  emptyMsg.style.display = "none";
+
+  filtered
+    .sort((a, b) => (a.booth || "").localeCompare(b.booth || "", undefined, { numeric: true }))
+    .forEach(r => {
+      const cats = (keywordsById[r.id] || []).join(", ");
+      const badgeClass = r.match_code === "111" ? "core" : "other";
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><span class="badge ${badgeClass}">${r.match_code}</span></td>
+        <td>${r.booth || "-"}</td>
+        <td>${r.name}</td>
+        <td class="cat">${cats || "-"}</td>
+      `;
+      rows.appendChild(tr);
+    });
+}
+
+init();
+</script>
+
+</body>
+</html>
