@@ -2,39 +2,91 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>EuroTier 2026 대시보드</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EuroTier 2026</title>
 <style>
-  :root { color-scheme: light; }
-  body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background: #f9f9f7; }
-  #gate { position:fixed; inset:0; background:#222; color:white;
-          display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:10; }
-  #content { display:none; padding: 24px; max-width: 800px; margin: 0 auto; }
-  h1 { font-size: 20px; color:#0b0b0b; }
-  .bar-row { display:flex; align-items:center; margin-bottom: 6px; }
-  .bar-label { width: 120px; font-size: 13px; color:#52514e; text-align:right; padding-right:8px; }
-  .bar-track { flex:1; background:#e1e0d9; border-radius:4px; height:20px; position:relative; }
-  .bar-fill { background:#2a78d6; height:20px; border-radius:4px; }
-  .bar-value { margin-left:8px; font-size:12px; color:#52514e; font-variant-numeric: tabular-nums; }
-  #printBtn { margin-bottom:16px; padding:8px 16px; cursor:pointer; }
-  @media print {
-    #gate, #printBtn { display:none !important; }
-    #content { display:block !important; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: #ffffff;
+    color: #0b0b0b;
   }
+
+  /* 비밀번호 가림막 */
+  #gate {
+    position: fixed; inset: 0; background: #ffffff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; z-index: 10;
+  }
+  #gate input {
+    padding: 10px 14px; font-size: 16px; border: 1px solid #c3c2b7;
+    border-radius: 6px; width: 220px; text-align: center;
+  }
+  #gate button {
+    padding: 10px 24px; font-size: 15px; border: none; border-radius: 6px;
+    background: #2a78d6; color: #fff; cursor: pointer;
+  }
+  #gate button:hover { background: #1c5cab; }
+  #msg { color: #d03b3b; font-size: 14px; min-height: 18px; }
+
+  /* 메인 화면 */
+  #content {
+    display: none;
+    min-height: 100vh;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 40px;
+  }
+  #content.show { display: flex; }
+
+  h1 { font-size: 22px; margin: 0; color: #0b0b0b; }
+  p.sub { color: #898781; font-size: 14px; margin-top: -28px; }
+
+  .menu {
+    display: flex; gap: 24px; flex-wrap: wrap; justify-content: center;
+  }
+  .menu a {
+    display: block;
+    width: 220px; padding: 32px 16px;
+    text-align: center;
+    border: 1px solid #e1e0d9; border-radius: 12px;
+    text-decoration: none; color: #0b0b0b;
+    font-size: 17px; font-weight: 600;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .menu a:hover {
+    border-color: #2a78d6;
+    box-shadow: 0 2px 10px rgba(42,120,214,0.15);
+  }
+  .menu a span.icon { display: block; font-size: 28px; margin-bottom: 10px; }
 </style>
 </head>
 <body>
 
 <div id="gate">
-  <p>비밀번호를 입력하세요</p>
-  <input type="password" id="pw" />
+  <h1>EuroTier 2026</h1>
+  <input type="password" id="pw" placeholder="비밀번호" />
   <button onclick="checkPw()">확인</button>
-  <p id="msg" style="color:red;"></p>
+  <p id="msg"></p>
 </div>
 
 <div id="content">
-  <button id="printBtn" onclick="window.print()">인쇄 / PDF 저장</button>
-  <h1>키워드별 참가업체 수 (상위 20)</h1>
-  <div id="chart"></div>
+  <div>
+    <h1>EuroTier 2026 참가업체 검색</h1>
+    <p class="sub">원하는 방식으로 업체를 찾아보세요</p>
+  </div>
+  <div class="menu">
+    <a href="classify.html">
+      <span class="icon">🔍</span>
+      분류 페이지<br>
+      <small style="font-weight:400;color:#898781;">축종·기능·성분 키워드로 찾기</small>
+    </a>
+    <a href="hall.html">
+      <span class="icon">📍</span>
+      부스 페이지<br>
+      <small style="font-weight:400;color:#898781;">홀(Hall)별로 찾기</small>
+    </a>
+  </div>
 </div>
 
 <script>
@@ -42,36 +94,14 @@ function checkPw() {
   const input = document.getElementById("pw").value;
   if (input === "3101") {
     document.getElementById("gate").style.display = "none";
-    document.getElementById("content").style.display = "block";
-    loadChart();
+    document.getElementById("content").classList.add("show");
   } else {
     document.getElementById("msg").innerText = "비밀번호가 틀렸습니다";
   }
 }
-
-async function loadChart() {
-  const res = await fetch("keyword_lookup.csv");
-  const text = await res.text();
-  const rows = text.trim().split("\n").slice(1)
-    .map(r => r.split(","))
-    .map(([word, n]) => ({ word, n: parseInt(n) }));
-  const top20 = rows.slice(0, 20);
-  const max = top20[0].n;
-
-  const chart = document.getElementById("chart");
-  top20.forEach(d => {
-    const row = document.createElement("div");
-    row.className = "bar-row";
-    row.innerHTML = `
-      <div class="bar-label">${d.word}</div>
-      <div class="bar-track">
-        <div class="bar-fill" style="width:${(d.n / max * 100).toFixed(1)}%"></div>
-      </div>
-      <div class="bar-value">${d.n}</div>
-    `;
-    chart.appendChild(row);
-  });
-}
+document.getElementById("pw").addEventListener("keyup", e => {
+  if (e.key === "Enter") checkPw();
+});
 </script>
 
 </body>
