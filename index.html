@@ -2,31 +2,75 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>EuroTier 2026</title>
+<title>EuroTier 2026 대시보드</title>
+<style>
+  :root { color-scheme: light; }
+  body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background: #f9f9f7; }
+  #gate { position:fixed; inset:0; background:#222; color:white;
+          display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:10; }
+  #content { display:none; padding: 24px; max-width: 800px; margin: 0 auto; }
+  h1 { font-size: 20px; color:#0b0b0b; }
+  .bar-row { display:flex; align-items:center; margin-bottom: 6px; }
+  .bar-label { width: 120px; font-size: 13px; color:#52514e; text-align:right; padding-right:8px; }
+  .bar-track { flex:1; background:#e1e0d9; border-radius:4px; height:20px; position:relative; }
+  .bar-fill { background:#2a78d6; height:20px; border-radius:4px; }
+  .bar-value { margin-left:8px; font-size:12px; color:#52514e; font-variant-numeric: tabular-nums; }
+  #printBtn { margin-bottom:16px; padding:8px 16px; cursor:pointer; }
+  @media print {
+    #gate, #printBtn { display:none !important; }
+    #content { display:block !important; }
+  }
+</style>
 </head>
 <body>
 
-<div id="gate" style="position:fixed; inset:0; background:#222; color:white;
-     display:flex; flex-direction:column; align-items:center; justify-content:center;">
+<div id="gate">
   <p>비밀번호를 입력하세요</p>
   <input type="password" id="pw" />
   <button onclick="checkPw()">확인</button>
   <p id="msg" style="color:red;"></p>
 </div>
 
-<div id="content" style="display:none;">
-  <h1>여기에 대시보드 내용</h1>
+<div id="content">
+  <button id="printBtn" onclick="window.print()">인쇄 / PDF 저장</button>
+  <h1>키워드별 참가업체 수 (상위 20)</h1>
+  <div id="chart"></div>
 </div>
 
 <script>
 function checkPw() {
   const input = document.getElementById("pw").value;
-  if (input === "eugenebio2026") {   // 여기 원하는 비번으로 바꾸세요
+  if (input === "3101") {
     document.getElementById("gate").style.display = "none";
     document.getElementById("content").style.display = "block";
+    loadChart();
   } else {
     document.getElementById("msg").innerText = "비밀번호가 틀렸습니다";
   }
+}
+
+async function loadChart() {
+  const res = await fetch("keyword_lookup.csv");
+  const text = await res.text();
+  const rows = text.trim().split("\n").slice(1)
+    .map(r => r.split(","))
+    .map(([word, n]) => ({ word, n: parseInt(n) }));
+  const top20 = rows.slice(0, 20);
+  const max = top20[0].n;
+
+  const chart = document.getElementById("chart");
+  top20.forEach(d => {
+    const row = document.createElement("div");
+    row.className = "bar-row";
+    row.innerHTML = `
+      <div class="bar-label">${d.word}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${(d.n / max * 100).toFixed(1)}%"></div>
+      </div>
+      <div class="bar-value">${d.n}</div>
+    `;
+    chart.appendChild(row);
+  });
 }
 </script>
 
